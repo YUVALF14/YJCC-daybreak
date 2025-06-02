@@ -52,6 +52,7 @@ import {
   RateReview as RateReviewIcon,
 } from "@mui/icons-material";
 import "./App.css";
+import EventDashboard from "./components/EventDashboard";
 
 // Create rtl cache with specific configuration
 const cacheRtl = createCache({
@@ -575,481 +576,6 @@ const FeedbackDialog = ({ open, onClose, event }) => {
   );
 };
 
-// EventDashboard Component
-function EventDashboard() {
-  const [events, setEvents] = useState([]);
-  const [openDialog, setOpenDialog] = useState(false);
-  const [openParticipantsDialog, setOpenParticipantsDialog] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState(null);
-  const [selectedParticipantEvent, setSelectedParticipantEvent] =
-    useState(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    date: "",
-    location: "",
-    price: "",
-    maxParticipants: "",
-  });
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: "",
-  });
-
-  useEffect(() => {
-    if (selectedEvent) {
-      setFormData({
-        name: selectedEvent.name || "",
-        date: selectedEvent.date || "",
-        location: selectedEvent.location || "",
-        price: selectedEvent.price || "",
-        maxParticipants: selectedEvent.maxParticipants || "",
-      });
-    } else {
-      setFormData({
-        name: "",
-        date: "",
-        location: "",
-        price: "",
-        maxParticipants: "",
-      });
-    }
-  }, [selectedEvent]);
-
-  const handleFormChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleSubmit = () => {
-    if (!formData.name || !formData.date || !formData.location) {
-      setSnackbar({
-        open: true,
-        message: "נא למלא את כל השדות הנדרשים",
-      });
-      return;
-    }
-
-    const eventData = {
-      ...formData,
-      participants: [],
-    };
-
-    if (selectedEvent) {
-      const updatedEvents = events.map((event) =>
-        event.id === selectedEvent.id ? { ...event, ...eventData } : event
-      );
-      setEvents(updatedEvents);
-      setSnackbar({
-        open: true,
-        message: "האירוע עודכן בהצלחה",
-      });
-    } else {
-      const newEvent = {
-        ...eventData,
-        id: Date.now(),
-        participants: [],
-        createdAt: new Date().toISOString(),
-      };
-      setEvents([...events, newEvent]);
-      setSnackbar({
-        open: true,
-        message: `האירוע "${eventData.name}" נוצר בהצלחה! 🎉`,
-      });
-    }
-
-    setOpenDialog(false);
-    setSelectedEvent(null);
-    setFormData({
-      name: "",
-      date: "",
-      location: "",
-      price: "",
-      maxParticipants: "",
-    });
-  };
-
-  useEffect(() => {
-    localStorage.setItem("yjccEvents", JSON.stringify(events));
-  }, [events]);
-
-  const handleDelete = (eventId) => {
-    setEvents(events.filter((event) => event.id !== eventId));
-    setSnackbar({ open: true, message: "האירוע נמחק בהצלחה" });
-  };
-
-  const handleParticipantUpdate = (eventId, participant) => {
-    setEvents(
-      events.map((event) => {
-        if (event.id === eventId) {
-          const existingParticipantIndex = event.participants.findIndex(
-            (p) => p.phone === participant.phone
-          );
-          const updatedParticipants =
-            existingParticipantIndex >= 0
-              ? event.participants.map((p, index) =>
-                  index === existingParticipantIndex ? participant : p
-                )
-              : [...event.participants, participant];
-          return { ...event, participants: updatedParticipants };
-        }
-        return event;
-      })
-    );
-  };
-
-  return (
-    <Container dir="rtl">
-      <Box
-        sx={{
-          my: 4,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <Typography
-          variant="h4"
-          component="h1"
-          sx={{ fontWeight: 600, textAlign: "right" }}
-        >
-          אירועי YJCC
-        </Typography>
-        <Fab color="primary" onClick={() => setOpenDialog(true)}>
-          <AddIcon />
-        </Fab>
-      </Box>
-
-      <TableContainer component={Paper} sx={{ direction: "rtl" }}>
-        <Table dir="rtl">
-          <TableHead>
-            <TableRow>
-              <TableCell align="right">שם האירוע</TableCell>
-              <TableCell align="right">תאריך</TableCell>
-              <TableCell align="right">מיקום</TableCell>
-              <TableCell align="right">מחיר</TableCell>
-              <TableCell align="right">משתתפים</TableCell>
-              <TableCell align="right">פעולות</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {events.map((event) => (
-              <TableRow key={event.id}>
-                <TableCell align="right">{event.name}</TableCell>
-                <TableCell align="right">
-                  {new Date(event.date).toLocaleDateString("he-IL", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </TableCell>
-                <TableCell align="right">{event.location}</TableCell>
-                <TableCell align="right">{event.price} CZK</TableCell>
-                <TableCell align="right">
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    onClick={() => {
-                      setSelectedParticipantEvent(event);
-                      setOpenParticipantsDialog(true);
-                    }}
-                  >
-                    {event.participants?.length || 0} /{" "}
-                    {event.maxParticipants || "∞"}
-                  </Button>
-                </TableCell>
-                <TableCell align="right">
-                  <IconButton onClick={() => setOpenDialog(true)}>
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton onClick={() => handleDelete(event.id)}>
-                    <DeleteIcon />
-                  </IconButton>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-
-      {/* Event Form Dialog */}
-      <Dialog
-        open={openDialog}
-        onClose={() => {
-          setOpenDialog(false);
-          setFormData({
-            name: "",
-            date: "",
-            location: "",
-            price: "",
-            maxParticipants: "",
-          });
-        }}
-        maxWidth="sm"
-        fullWidth
-        dir="rtl"
-      >
-        <DialogTitle sx={{ textAlign: "right" }}>
-          {selectedEvent ? "עריכת אירוע" : "יצירת אירוע חדש"}
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 2 }}>
-            <TextField
-              label="שם האירוע"
-              value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
-              fullWidth
-              required
-              InputProps={{
-                sx: { textAlign: "right" },
-              }}
-              sx={{ direction: "rtl" }}
-            />
-            <TextField
-              label="תאריך ושעה"
-              type="datetime-local"
-              value={formData.date}
-              onChange={(e) =>
-                setFormData({ ...formData, date: e.target.value })
-              }
-              fullWidth
-              required
-              InputLabelProps={{ shrink: true }}
-              sx={{ direction: "rtl" }}
-            />
-            <TextField
-              label="מיקום"
-              value={formData.location}
-              onChange={(e) =>
-                setFormData({ ...formData, location: e.target.value })
-              }
-              fullWidth
-              required
-              InputProps={{
-                sx: { textAlign: "right" },
-              }}
-              sx={{ direction: "rtl" }}
-            />
-            <TextField
-              label="מחיר (קרונות)"
-              type="number"
-              value={formData.price}
-              onChange={(e) =>
-                setFormData({ ...formData, price: e.target.value })
-              }
-              fullWidth
-              InputProps={{
-                endAdornment: <Typography>CZK</Typography>,
-                sx: { textAlign: "right" },
-              }}
-              sx={{ direction: "rtl" }}
-            />
-            <TextField
-              label="מספר משתתפים מקסימלי"
-              type="number"
-              value={formData.maxParticipants}
-              onChange={(e) =>
-                setFormData({ ...formData, maxParticipants: e.target.value })
-              }
-              fullWidth
-              InputProps={{
-                sx: { textAlign: "right" },
-              }}
-              sx={{ direction: "rtl" }}
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ justifyContent: "flex-start" }}>
-          <Button
-            onClick={() => {
-              setOpenDialog(false);
-              setFormData({
-                name: "",
-                date: "",
-                location: "",
-                price: "",
-                maxParticipants: "",
-              });
-            }}
-          >
-            ביטול
-          </Button>
-          <Button onClick={handleSubmit} variant="contained" color="primary">
-            {selectedEvent ? "עדכן" : "צור"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Participants Dialog */}
-      <Dialog
-        open={openParticipantsDialog}
-        onClose={() => {
-          setOpenParticipantsDialog(false);
-          setSelectedParticipantEvent(null);
-        }}
-        maxWidth="md"
-        fullWidth
-        dir="rtl"
-      >
-        <DialogTitle sx={{ textAlign: "right" }}>
-          משתתפים - {selectedParticipantEvent?.name}
-        </DialogTitle>
-        <DialogContent>
-          <Box
-            sx={{
-              mb: 3,
-              display: "flex",
-              gap: 2,
-              justifyContent: "flex-start",
-            }}
-          >
-            <TextField
-              label="שם משתתף"
-              required
-              size="small"
-              InputProps={{
-                sx: { textAlign: "right" },
-              }}
-              sx={{ direction: "rtl" }}
-            />
-            <TextField
-              label="מספר טלפון"
-              required
-              size="small"
-              InputProps={{
-                sx: { textAlign: "right" },
-              }}
-              sx={{ direction: "rtl" }}
-            />
-            <Button
-              variant="contained"
-              onClick={() => {
-                const nameInput = document.querySelector(
-                  'input[label="שם משתתף"]'
-                );
-                const phoneInput = document.querySelector(
-                  'input[label="מספר טלפון"]'
-                );
-                if (
-                  nameInput &&
-                  phoneInput &&
-                  nameInput.value &&
-                  phoneInput.value
-                ) {
-                  handleParticipantUpdate(selectedParticipantEvent.id, {
-                    name: nameInput.value,
-                    phone: phoneInput.value,
-                    paid: false,
-                    confirmed: false,
-                    attended: false,
-                  });
-                  nameInput.value = "";
-                  phoneInput.value = "";
-                }
-              }}
-            >
-              הוסף משתתף
-            </Button>
-          </Box>
-
-          <TableContainer>
-            <Table dir="rtl">
-              <TableHead>
-                <TableRow>
-                  <TableCell align="right">שם</TableCell>
-                  <TableCell align="right">טלפון</TableCell>
-                  <TableCell align="right">שילם</TableCell>
-                  <TableCell align="right">אישר הגעה</TableCell>
-                  <TableCell align="right">הגיע</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {selectedParticipantEvent?.participants?.map((participant) => (
-                  <TableRow key={participant.phone}>
-                    <TableCell align="right">{participant.name}</TableCell>
-                    <TableCell align="right">{participant.phone}</TableCell>
-                    <TableCell align="right">
-                      <Checkbox
-                        checked={participant.paid}
-                        onChange={() =>
-                          handleParticipantUpdate(selectedParticipantEvent.id, {
-                            ...participant,
-                            paid: !participant.paid,
-                          })
-                        }
-                      />
-                    </TableCell>
-                    <TableCell align="right">
-                      <Checkbox
-                        checked={participant.confirmed}
-                        onChange={() =>
-                          handleParticipantUpdate(selectedParticipantEvent.id, {
-                            ...participant,
-                            confirmed: !participant.confirmed,
-                          })
-                        }
-                      />
-                    </TableCell>
-                    <TableCell align="right">
-                      <Checkbox
-                        checked={participant.attended}
-                        onChange={() =>
-                          handleParticipantUpdate(selectedParticipantEvent.id, {
-                            ...participant,
-                            attended: !participant.attended,
-                          })
-                        }
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </DialogContent>
-        <DialogActions sx={{ justifyContent: "flex-start" }}>
-          <Button
-            onClick={() => {
-              setOpenParticipantsDialog(false);
-              setSelectedParticipantEvent(null);
-            }}
-          >
-            סגור
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        message={snackbar.message}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-      />
-
-      <Fab
-        color="primary"
-        sx={{
-          position: "fixed",
-          bottom: 16,
-          right: 16,
-          bgcolor: "#25D366",
-          "&:hover": { bgcolor: "#128C7E" },
-        }}
-        onClick={() => window.open("https://wa.me/+972542230342", "_blank")}
-      >
-        <WhatsAppIcon />
-      </Fab>
-    </Container>
-  );
-}
-
 // NotificationSystem Component
 function NotificationSystem() {
   const [events, setEvents] = useState(() => {
@@ -1105,9 +631,6 @@ function NotificationSystem() {
 
 // Lazy load components
 const LazyFeedbackForm = React.lazy(() => import("./components/FeedbackForm"));
-const LazyEventDashboard = React.lazy(() =>
-  import("./components/EventDashboard")
-);
 
 // Utils
 const formatDate = (date) => {
@@ -1278,7 +801,7 @@ const validateParticipantForm = (formData) => {
 };
 
 // LandingPage Component
-function LandingPage({ onAdminClick, onParticipantClick }) {
+function LandingPage({ onAdminClick }) {
   return (
     <Container maxWidth="sm" sx={{ textAlign: "center", mt: 8 }}>
       <Paper
@@ -1315,144 +838,37 @@ function LandingPage({ onAdminClick, onParticipantClick }) {
           >
             כניסת מנהל
           </Button>
-          <Button
-            variant="contained"
-            color="secondary"
-            size="large"
-            onClick={onParticipantClick}
-            sx={{
-              py: 2,
-              fontSize: "1.1rem",
-            }}
-          >
-            הרשמה לאירועים
-          </Button>
         </Box>
       </Paper>
     </Container>
   );
 }
 
-// ParticipantDashboard Component
-function ParticipantDashboard() {
-  const [events, setEvents] = useState(() => {
-    const savedEvents = localStorage.getItem("yjccEvents");
-    return savedEvents ? JSON.parse(savedEvents) : [];
-  });
-
-  const handleRegistration = (event, formData) => {
-    // ... registration logic ...
-    setSnackbar({
-      open: true,
-      message: `נרשמת בהצלחה לאירוע "${event.name}"! 🎉 נשלח אליך הודעת וואטסאפ עם פרטים נוספים`,
-      severity: "success",
-    });
-  };
-
-  return (
-    <Container>
-      <Typography variant="h4" sx={{ mb: 4 }}>
-        אירועים קרובים
-      </Typography>
-      <Grid container spacing={3}>
-        {events
-          .filter((event) => new Date(event.date) > new Date())
-          .sort((a, b) => new Date(a.date) - new Date(b.date))
-          .map((event) => (
-            <Grid item xs={12} md={6} key={event.id}>
-              <Paper
-                elevation={3}
-                sx={{
-                  p: 3,
-                  height: "100%",
-                  display: "flex",
-                  flexDirection: "column",
-                  position: "relative",
-                }}
-              >
-                <Typography variant="h6">{event.name}</Typography>
-                <Typography variant="body1" sx={{ mb: 2 }}>
-                  {formatDate(event.date)}
-                </Typography>
-                <Typography variant="body2" sx={{ mb: 2 }}>
-                  {event.location}
-                </Typography>
-                <Typography variant="body2" sx={{ mb: 2 }}>
-                  {event.description}
-                </Typography>
-                <Box sx={{ mt: "auto" }}>
-                  <Typography variant="body2" color="text.secondary">
-                    משתתפים: {event.participants?.length || 0} /{" "}
-                    {event.maxParticipants || "ללא הגבלה"}
-                  </Typography>
-                  {(!event.maxParticipants ||
-                    event.participants?.length < event.maxParticipants) && (
-                    <Button
-                      variant="contained"
-                      fullWidth
-                      sx={{ mt: 2 }}
-                      onClick={() => {
-                        /* TODO: Add registration logic */
-                      }}
-                    >
-                      הרשמה לאירוע
-                    </Button>
-                  )}
-                </Box>
-              </Paper>
-            </Grid>
-          ))}
-      </Grid>
-    </Container>
-  );
-}
-
 // Main App Component
 function App() {
-  const [view, setView] = useState("landing");
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const handleAdminLogin = (code) => {
-    if (code === ADMIN_CODE) {
-      setView("admin");
-      return true;
+    if (code === process.env.REACT_APP_ADMIN_CODE) {
+      setIsAdmin(true);
     }
-    return false;
   };
 
   const renderView = () => {
-    switch (view) {
-      case "landing":
-        return (
-          <LandingPage
-            onAdminClick={() => setView("admin-login")}
-            onParticipantClick={() => setView("participant")}
-          />
-        );
-      case "admin-login":
-        return <AdminLogin onLogin={handleAdminLogin} />;
-      case "admin":
-        return <EventDashboard />;
-      case "participant":
-        return <ParticipantDashboard />;
-      default:
-        return <LandingPage />;
+    if (isAdmin) {
+      return <EventDashboard />;
     }
+    return <LandingPage onAdminClick={() => setIsAdmin(true)} />;
   };
 
   return (
     <CacheProvider value={cacheRtl}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <Box
-          sx={{
-            minHeight: "100vh",
-            background: "linear-gradient(135deg, #E3F2FD 0%, #FFFFFF 100%)",
-            padding: "20px",
-            direction: "rtl",
-          }}
-        >
+        <Container maxWidth="lg" sx={{ py: 4 }}>
+          <YJCCLogo />
           {renderView()}
-        </Box>
+        </Container>
       </ThemeProvider>
     </CacheProvider>
   );
